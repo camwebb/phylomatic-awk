@@ -425,7 +425,7 @@ function fyt2new(                 x , y, n, first , mark, tmp)  {
   
   print downPar(rootNode, tmp) ";"
   if (warning)
-    print "\n" warning > "/dev/stderr"
+    print warning > "/dev/stderr"
 
 }
 
@@ -477,7 +477,7 @@ function printfyt(     i) {
     print i, parent[i], bl[i], taxon[i] # nDaughter[i],  
   
   if (warning)
-    print warning "\n" warning > "/dev/stderr"
+    print warning > "/dev/stderr"
 }
 
 function error( msg ) {
