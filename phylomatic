@@ -1,26 +1,36 @@
 #!/usr/bin/gawk -f
 
-## Standalone phylomatic 
+# Standalone phylomatic 
 
-## Copyright (c) 2012-2021, Campbell Webb <cw@camwebb.info>
+# Copyright (c) 2012-2021, Campbell Webb <cw@camwebb.info>
 
-## Globals: parent[], bl[], taxon[], nDaughter[], hasBL, warning, rootNode
-##   CLEAN
+# Global variables: Parent[], Bl[], Taxon[], Note[], DaughtersN[],
+#                   HasBL, warning, RootNode
+# Global constants: CLEAN, FYIN, FYOUT, TAXAFILE, PHYLOFILE
 
 BEGIN{
 
+  read_args()
+  # read input newick
   new2fyt()
 
-  # printfyt()
-
-  CLEAN = 1
+  # convert and exit
+  if (FYIN) {
+    printfy()
+    exit 0
+  }
+  
   phylomatic()
 
-  #printfyt()
-
-  fyt2new()
-
-
+  # output as fy or newick
+  if (FYOUT) {
+    printfy()
+    exit 0
+  }
+  else {
+    fy2new()
+    exit 0
+  }
 }
 
 ## ----- NEW2FYT ---------------------------------------------------------
@@ -28,38 +38,45 @@ BEGIN{
 function new2fyt(          newick, i, j , k, atn, iname, taxa, b) {
 
   RS="\x04"
-  while ((getline < ARGV[1]) > 0)
+  while ((getline < PHYLOFILE) > 0)
     newick = $0
   if (!newick)
     error("Reading phylo file failed")
-  
-  gsub(/ \n\r/, "", newick)
 
+  # no returns allowed
+  gsub(/[\n\r]/, "", newick)
+  # make sure names adhere to parentheses or commas (see tests below)
+  newick = gensub(/([(),]) +/,"\\1","G",newick)
+  
   # checks
   if (gsub(/\(/,"(",newick) != gsub(/\)/,")",newick))
-    error("Newick parse error: mismatched parentheses")
+    error("Newick, mismatched parentheses")
   if (!index(newick, ";") || !index(newick, "(") || !index(newick, ")") || \
       !index(newick, ","))
-    error("Newick parse error: missing any ( , ) ; characters")
+    error("Newick, missing ( , ) ; characters")
   if (newick ~ /:[0-9.-]+[eE][0-9-]+/)
-    error("Branch lengths contain sci notation")
+    error("Newick, branch lengths contain sci notation")
       
   j = k = -1
-  rootNode = 0
+  RootNode = 0
 
-  # MOVE THROUGHT THE NEWICK FORMAT TREE CHARACTER BY CHARACTER
+  # Move through the newick format tree character by character
   i = 1
   while (i < length(newick)) {
-    # the end?
-    if (substr(newick,i,1) == ";")
+    # ignore spaces not in names or notes
+    if (substr(newick,i,1) == " ")
+      i++
+
+    # the end (if not the last char)?
+    else if (substr(newick,i,1) == ";")
       break
     
-    # descend a branch, create parent
+    # descend a branch, create Parent
     else if (substr(newick,i,1) == "(") {
       j++
-      parent[j] = k
-      taxon[j] = ""
-      nDaughter[k]++
+      Parent[j] = k
+      Taxon[j] = ""
+      DaughtersN[k]++
       k = j
       i++
     }
@@ -70,8 +87,8 @@ function new2fyt(          newick, i, j , k, atn, iname, taxa, b) {
 
     # back up a node to len, keep track of locn with atn
     else if (substr(newick, i, 1 ) == ")") {
-      k = parent[k]
-      atn = parent[atn]
+      k = Parent[k]
+      atn = Parent[atn]
       i++
     }
 
@@ -84,30 +101,38 @@ function new2fyt(          newick, i, j , k, atn, iname, taxa, b) {
         iname = iname substr(newick, i, 1)
         i++
       }
-      taxon[atn] = iname
+      # replaces spaces with underscores
+      gsub(/ /,"_",iname)
+      Taxon[atn] = iname
     }
 
-    # NOTE - IGNORE IT
-    else if (substr(newick, i, 1 ) == "[")
-      while(substr(newick, i-1, 1) !~ /\]/)
+    # Note
+    else if (substr(newick, i, 1 ) == "[") {
+      while(substr(newick, i+1, 1) != "]") {
         i++
+        Note[atn] = Note[atn] substr(newick, i, 1 )
+      }
+      i += 2  # from ...not<e>]... to ...note]<.>..
+    }
     
     # branch length coming up
     else if (substr(newick, i, 1 ) == ":") {
       b = ""
       i++
-      while(substr(newick, i, 1) ~ /[0-9\.]/) {
+      while(substr(newick, i, 1) ~ /[ 0-9.-]/) {
         b = b substr(newick, i, 1)
         i++
       }
-      if (b != "") {hasBL = 1}
-      bl[atn] = b
+      # clean any spaces after colon
+      gsub(/ /,"",b)
+      if (b != "") {HasBL = 1}
+      Bl[atn] = b
     }
 
-    # default - it's a new taxon name
+    # default - it's a new Taxon name
     # TODO - fix this. anytime you find a non ,:;()[] character, check to 
     # see if previous VALID character is , or ). If it is, or if character
-    # is ', begin a new taxon name. If it's not, ignore. This should handle
+    # is ', begin a new Taxon name. If it's not, ignore. This should handle
     # whitespace, newlines and other garbage (but non-fatal) characters 
     # that currently crash the input.
     else if ((substr(newick, i, 1 ) ~ /[A-Za-z\-_]\'/) &&    \
@@ -122,52 +147,57 @@ function new2fyt(          newick, i, j , k, atn, iname, taxa, b) {
         taxa = taxa substr(newick, i, 1)
         i++
       }
-          
+      gsub(/ +$/,"",taxa)
+      gsub(/ /,"_",taxa)
+      
       # A new name means a new node
       j++
       atn = j
-      parent[j]     = k
-      taxon[j] = taxa
-      nDaughter[k]++
+      Parent[j] = k
+      Taxon[j] = taxa
+      DaughtersN[k]++
     }
     else i++
   }
   
-  # Set the rootNode parent
-  parent[0] = "-1"
+  # Set the RootNode Parent
+  Parent[0] = "-1"
 
 }
 
 ## ----- PHYLOMATIC ---------------------------------------------------------
 
-function phylomatic(       divbl, endbit, i, j, keep, kpd, matched, nodetmp, \
-                           newnode, nkpd, nmatched, node, ntaxatrees, p, \
-                           shiftedbl, thisnode, tobecleaned, x, xbl, z1, z2) {
-  if (hasBL)
+function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
+                           nodetmp, newnode, nkpd, nmatched, node, ntaxatrees,\
+                           p, shiftedbl, taxa, thisnode, tobecleaned, x, xbl, \
+                           z1, z2) {
+  if (HasBL)
     ageToRoot()
 
-  # READ TAXA
+  # Read taxa file
   RS="\x04"
-  while ((getline < ARGV[2]) > 0)
+  while ((getline < TAXAFILE) > 0)
     ftaxa = $0
   if (!ftaxa)
     error("Reading taxa file failed")
   
-  # clean
-  gsub(/\r\n/,"\n",ftaxa); # fix windows
-  gsub(/\r/,"\n",ftaxa); # fix mac
-  gsub(/\n\n*$/,"",ftaxa); # clean empty newlines at end
-  gsub(/[ \t]/,"",ftaxa); # important - tabs were causing hangs
-  # CHECK: spaces allowed in taxa names?
+  # clean taxa file
+  gsub(/\r\n/,"\n",ftaxa);  # fix windows
+  gsub(/\r/,"\n",ftaxa);    # fix mac
+  gsub(/\n\n*$/,"",ftaxa);  # clean empty newlines at end
+  gsub(/[ \t]/,"",ftaxa);   # important - tabs were causing hangs
+                            # CHECK: spaces allowed in taxa names?
 
+  # split lines
   ntaxatrees = split(ftaxa, taxa, "\n")
   if (ntaxatrees > 10000)
     error("More than 10,000 taxa. May take too long.\n"     \
           "  Comment out the relevant warning in source"\
           " if you really want to do this.")
 
-  # GRAFT
-  
+  # ** Graft **
+
+  # counter for additional nodes
   newnode = 1
 
   for (i = 1; i <= ntaxatrees; i++) {
@@ -180,21 +210,25 @@ function phylomatic(       divbl, endbit, i, j, keep, kpd, matched, nodetmp, \
 
     #  climb through the levels of nesting from terminal to basal
     for (j = 1; j <= nnodes; j++) {
-      if (matched[i]) break
+      if (matched[i])
+        break
       
       # looping through all nodes in megatree that have taxa names
-      for (k in taxon) {
-        if (!taxon[k])
+      # NOTE: should be quicker to reverse this and loop once through
+      #   mega tree names, and multiple times through taxa file names.
+      #   will require a rewrite
+      for (k in Parent) {
+        if (!Taxon[k])
           continue
 
-        # compare with the taxon name at every node in the megatree
+        # compare with the Taxon name at every node in the megatree
         # case insensitive
-        if (tolower(node[j]) == tolower(taxon[k])) {
-          # print "found " taxon[k] " for t " i " j " j "/" nnodes "\n"
-          #  if matches, add to megatree:
-                  
+        if (tolower(node[j]) == tolower(Taxon[k])) {
+          # print "found " Taxon[k] " for t " i " j " j "/" nnodes "\n"
+          # if matches, add to megatree:
+          
           # terminal to terminal match:
-          if ((nDaughter[k] == 0) && (j==1)) {
+          if ((DaughtersN[k] == 0) && (j==1)) {
             # flag the existing node and break (no graft, just prune)
             keep[k] =1
             matched[i]=1
@@ -203,21 +237,21 @@ function phylomatic(       divbl, endbit, i, j, keep, kpd, matched, nodetmp, \
           }
           # grafting needed
           else {
-            # deal with brach length adjustments
-            if (hasBL) {
-              if (nDaughter[k] == 0) {
+            # deal with branch length adjustments
+            if (HasBL) {
+              if (DaughtersN[k] == 0) {
                 # need to shift the BL of tip
-                ageNode(parent[k])
-                divbl = age[parent[k]] / j
+                ageNode(Parent[k])
+                divbl = Age[Parent[k]] / j
                 if (!shiftedbl[k])    {
-                  bl[k] = divbl
+                  Bl[k] = divbl
                   shiftedbl[k] = 1
                 }
               }
               # internal match
               else {
                 ageNode(k)
-                divbl = age[k] / (j-1)
+                divbl = Age[k] / (j-1)
               }
             }
 
@@ -226,11 +260,13 @@ function phylomatic(       divbl, endbit, i, j, keep, kpd, matched, nodetmp, \
             # starting with the node distal to the matched one
             for (p = j-1; p >= 1; p--) {
               thisnode = "pm" newnode
-              if (hasBL) bl[thisnode] = divbl
-              parent[thisnode] = x
-              nDaughter[x]++
-              taxon[thisnode] = node[p]
-              if (p == 1) keep[thisnode] = 1
+              if (HasBL)
+                Bl[thisnode] = divbl
+              Parent[thisnode] = x
+              DaughtersN[x]++
+              Taxon[thisnode] = node[p]
+              if (p == 1)
+                keep[thisnode] = 1
               x = thisnode
               newnode++
             }
@@ -247,72 +283,77 @@ function phylomatic(       divbl, endbit, i, j, keep, kpd, matched, nodetmp, \
 
   # AND PRUNE:
   
-  for (i in parent) {
+  for (i in Parent) {
     # terminals only with matching taxa
-    if ((nDaughter[i] == 0) && keep[i]) {
+    if ((DaughtersN[i] == 0) && keep[i]) {
       j = i
       # move up through tree
-      # ...was: while ((parent[j] != "NULL") || (!parent[j])) {
-      #   because the rootNode's parent was sometimes ""; safer to use -1
-      while (parent[j] != "-1") {
-        # for possible cleaning (kpd = kept parent daughter)
-        kpd[parent[j], j]=1
+      # ...was: while ((Parent[j] != "NULL") || (!Parent[j])) {
+      #   because the RootNode's Parent was sometimes ""; safer to use -1
+      while (Parent[j] != "-1") {
+        # for possible cleaning (kpd = kept Parent daughter)
+        kpd[Parent[j]][j]=1
         
-        j = parent[j]
+        j = Parent[j]
         keep[j]=1
       }
     }
-    # and keep the root
-    if (parent[j] == "-1")
+    # and keep the root, never reached in previous loop
+    if (Parent[j] == "-1")
       keep[j]=1
   }
 
   # now remove the elements not kept:
-  # make sure only to reference arrays by looping in parent!
+  # make sure only to reference arrays by looping in Parent!
 
-  for (i in parent)
-    if (!keep[i])
-      delete parent[i]  # Careful to only loop through parent[] now
-
-  # Finally, if phy is to be cleaned:
-  if (CLEAN) {
-    # find nkpd for each node
-    for (z1 in kpd) {
-      split (z1 , z2, SUBSEP)
-      # print " z2[1] " z2[1] "  z2[2] " z2[2] "\n"
-      nkpd[z2[1]]++
+  for (i in Parent)
+    if (!keep[i]) {
+      delete Parent[i]  # Careful to only loop through Parent[] now
+      # print "deleting " i
     }
+  # Finally, if phy is to be cleaned:
+  CLEAN = 1
+  if (CLEAN) {
+    # nkpd is number of times the Parent in an edge is passed through
+    for (i in kpd)
+      for (j in kpd[i])
+        nkpd[i]++
 
-    for (i in parent) {
+    for (i in Parent)
+      print i, Parent[i], DaughtersN[i], Taxon[i], nkpd[i]
+    exit
+    
+    for (i in Parent) {
       # visit paths to root from all terminal nodes
-      if (!nDaughter[i]) {
-        print "node " i ", parent " parent[i] ", nkpd " nkpd[i] ", tax " taxon[i]
+      if (!DaughtersN[i]) {
+        # print "node " i ", Parent " Parent[i] ", nkpd " nkpd[i] ", tax " Taxon[i]
         
         j = i
         # move up through tree 
-        while (parent[j] != "-1") {
-          print "  considering parent of " j " -> " parent[j] " taxon " taxon[parent[j]] "\n"
-          x = parent[j]
+        while (Parent[j] != "-1") {
+          # print "  considering Parent of " j " -> " Parent[j] " Taxon " Taxon[Parent[j]]
+          x = Parent[j]
           xbl = 0
-          # if the parent node is to be cleaned
+          # if the Parent node is only passed through once, i.e. not a node
+          #   in cleaned phylogeny
           while (nkpd[x] == 1) {
             tobecleaned = x
-            xbl += bl[tobecleaned]
-            x = parent[x]
+            xbl += Bl[tobecleaned]
+            x = Parent[x]
 
-            print "    deleted " tobecleaned " taxon " taxon[tobecleaned] "\n"
-            delete parent[tobecleaned]
+            print "    deleted " tobecleaned " Taxon " Taxon[tobecleaned]
+            delete Parent[tobecleaned]
           }
-          parent[j] = x
-          bl[j] += xbl
-          j = parent[j]
+          Parent[j] = x
+          Bl[j] += xbl
+          j = Parent[j]
         }
-        # set new rootNode
-        if (parent[j] == "-1") rootNode = j
+        # set new RootNode
+        if (Parent[j] == "-1") RootNode = j
       }
     }
-    # NULL was added to the index of parent, clear it:
-    delete parent["-1"]
+    # NULL was added to the index of Parent, clear it:
+    # delete Parent["-1"]
   }
 
 
@@ -327,60 +368,61 @@ function phylomatic(       divbl, endbit, i, j, keep, kpd, matched, nodetmp, \
 }
 
 function ageToRoot(     i, j) {
-  totalBL = 0
+  TotalBL = 0
   # assumes an ultrametric megatree
-  for (i in parent) {
+  for (i in Parent) {
     # find the first term
-    if (nDaughter[i] == 0) {
+    if (!DaughtersN[i]) {
       j = i
       # move up through tree
-      # WAS: while ((parent[j] != "NULL") || (!parent[j])) {
-      while (parent[j] != "-1") {
-        totalBL = totalBL + bl[j]
-        j = parent[j]
+      # WAS: while ((Parent[j] != "NULL") || (!Parent[j])) {
+      while (Parent[j] != "-1") {
+        TotalBL = TotalBL + Bl[j]
+        j = Parent[j]
       }
       break
     }
   }
 }
 
-function ageNode( innode,      j, sumBL)
-{
-  if (age[innode]) return
+function ageNode(innode,      j, sumBL) {
+  
+  if (Age[innode])
+    return
   else {
     j = innode
     # move up through tree
-    while (parent[j] != "-1") {
-      sumBL = sumBL + bl[j]
-      j = parent[j]
+    while (Parent[j] != "-1") {
+      sumBL = sumBL + Bl[j]
+      j = Parent[j]
     }
   }
-  age[innode] = totalBL - sumBL
-  # print "Age of " innode " is " age[innode] "\n"
+  Age[innode] = TotalBL - sumBL
+  # print "Age of " innode " is " Age[innode] "\n"
 }
 
-
-function fyt2new(                 x , y, n, first , mark, tmp)  {
+function fy2new(                 x , y, n, first , mark, tmp)  {
   # (c) 2011 Cam Webb
 
-  # fyt2new (recursive version)
-  # converts a tabular `fyt format phylogeny to Newick, parenthetical format
+  # fy2new (recursive version)
+  # converts a tabular fy format phylogeny to Newick, parenthetical format
 
-  # fyt-format = 4 tab-delimited string fields:
+  # fy-format = tab-delimited string fields:
   #   1. nodeID
-  #   2. parent node nodeID (must be either "-1", "", or "NULL" for rootNode node)
-  #   3. branch length to parent node (an integer or float; missing for no BLs)
+  #   2. Parent node nodeID (must be either "-1", "", or "NULL" for
+  #      root node)
+  #   3. branch length to Parent node (an integer or float; missing for no BLs)
   #   4. node name (terminal or interior node)
   #   5. (optional) notes attached node
 
-  # check for rootNode:
-  if (rootNode == "")
-    error("No rootNode found")
+  # check for RootNode:
+  if (RootNode == "")
+    error("No RootNode found")
 
-  # lDaughter, rSister needed for down-pass recursivity
+  # lDaughter, rSister needed for down-pass recursivity. Create:
 
   # initialize
-  for (x in parent) {
+  for (x in Parent) {
     lDaughter[x] = "NULL"
     rSister[x] = "NULL"
     first[x] = 1
@@ -389,24 +431,24 @@ function fyt2new(                 x , y, n, first , mark, tmp)  {
 
   # special case of a single node:
   if (n == 1) {
-    print taxon[x] ";"
+    print Taxon[x] ";"
     return
   }
 
   # create lDaughter, rSister
-  for (x in parent) {
+  for (x in Parent) {
     # starting at terms
-    if (!nDaughter[x]) {
+    if (!DaughtersN[x]) {
       y = x
-      # while not yet at the rootNode (allow diff coding schemes)
-      while (y != rootNode) {
+      # while not yet at the RootNode (allow diff coding schemes)
+      while (y != RootNode) {
         # is this the first daughter?
-        if (lDaughter[parent[y]] == "NULL") 
-          lDaughter[parent[y]] = y
+        if (lDaughter[Parent[y]] == "NULL")
+          lDaughter[Parent[y]] = y
         # if not, find the dangling sister
         else {
           # start at lDaughter
-          mark = lDaughter[parent[y]]
+          mark = lDaughter[Parent[y]]
           # move to node with an empty rSister
           while (rSister[mark] != "NULL")
             mark = rSister[mark]
@@ -414,8 +456,8 @@ function fyt2new(                 x , y, n, first , mark, tmp)  {
         }
         
         # test for refollowing old routes
-        if (first[parent[y]] == 1) {
-          y = parent[y]
+        if (first[Parent[y]] == 1) {
+          y = Parent[y]
           first[y] = 0
         }
         else
@@ -424,26 +466,27 @@ function fyt2new(                 x , y, n, first , mark, tmp)  {
     }
   }
 
-  # Recurse through levels
+  # Now recurse through levels, creating out string in tmp
 
   tmp = ""
   
-  print downPar(rootNode, tmp) ";"
+  print downPar(RootNode, tmp) ";"
+  
   if (warning)
     print warning > "/dev/stderr"
-
 }
 
 function downPar(atn, tmp,           x, which, tmpnext ) {
   which = 0
 
   # if terminal, go no further
-  if (!nDaughter[atn]) {
-    tmp = gensub(/ /,"_","G",taxon[atn])
-    if ((hasBL) && ( bl[atn])) 
-      tmp = tmp ":" bl[atn]
-    if (note[atn])
-      tmp = tmp "[" note[atn] "]" 
+  if (!DaughtersN[atn]) {
+    tmp = gensub(/ /,"_","G",Taxon[atn])
+    if ((HasBL) && ( Bl[atn])) 
+      tmp = tmp ":" Bl[atn]
+    if (Note[atn])
+      # TODO: escape any [, ] in note 
+      tmp = tmp "[" Note[atn] "]" 
   }
   else {
     
@@ -459,27 +502,28 @@ function downPar(atn, tmp,           x, which, tmpnext ) {
       x = rSister[x]; which++
     }
     tmp = tmp  ")"
-    tmp = tmp  gensub(/ /,"_","G",taxon[atn])
-    if ((hasBL) && ( bl[atn])) 
-      tmp = tmp  ":" bl[atn]
-    if (note[atn])
-      tmp = tmp "[" note[atn] "]" 
+    tmp = tmp  gensub(/ /,"_","G",Taxon[atn])
+    
+    if ((HasBL) && ( Bl[atn])) 
+      tmp = tmp  ":" Bl[atn]
+    if (Note[atn])
+      tmp = tmp "[" Note[atn] "]" 
   }
   
   return tmp
 }
 
-function printfyt(     i) {
+function printfy(     i) {
 
-  # n = asorti(parent, sortidx)   # old method
+  # n = asorti(Parent, sortidx)   # old method
   # for (i = 1; i <= n; i++) {
-  # print sortidx[i], parent[sortidx[i]],         \
-  #   bl[sortidx[i]], taxon[sortidx[i]] }
+  # print sortidx[i], Parent[sortidx[i]],         \
+  #   Bl[sortidx[i]], Taxon[sortidx[i]] }
 
   PROCINFO["sorted_in"] = "@ind_num_asc"
   OFS="|"
-  for (i in parent)
-    print i, parent[i], bl[i], taxon[i] # nDaughter[i],  
+  for (i in Parent)
+    print i, Parent[i], Bl[i], Taxon[i], Note[i]  # DaughtersN[i],  
   
   if (warning)
     print warning > "/dev/stderr"
@@ -487,6 +531,24 @@ function printfyt(     i) {
 
 function error( msg ) {
   print "Error: " msg 
-  exit 
+  exit 1
 }
 
+function read_args(    arg) {
+  # Read arguments, check, give usage. Long args to avoid Gawk clash
+  for (arg = 1; arg < ARGC; arg++) {
+    if      (ARGV[arg] == "--clean" ) CLEAN     = 1
+    else if (ARGV[arg] == "--new2fy") FYIN      = 1 # print fy of phylo, exit
+    else if (ARGV[arg] == "--fyout" ) FYOUT     = 1 # output fy not newick
+    else if (ARGV[arg] == "--taxa"  ) TAXAFILE  = ARGV[arg+1]
+    else if (ARGV[arg] == "--newick") PHYLOFILE = ARGV[arg+1]
+  }
+  
+  if ((!TAXAFILE && !FYIN) || !PHYLOFILE) {
+    print "Usages: phylomatic [ --clean --fyout  ] "                 \
+      "--newick <phylo> --taxa <taxa>\n"                             \
+      "        phylomatic           --new2fy   --newick <phylo>"     \
+      > "/dev/stderr"
+    exit 1
+  }
+}
