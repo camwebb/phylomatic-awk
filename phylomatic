@@ -313,17 +313,11 @@ function phylomatic(       divbl, endbit, i, j, keep, kpd, matched, nodetmp, \
 
   # Missing taxa
   if (nmatched < ntaxatrees) {
-    # if (f["outformat"] == "fyt") {
-    #       warning = "----\nNOTE: " ntaxatrees - nmatched " taxa not matched:\n"
-    #       endbit = "\n"
-    # }
-    # else {
-    warning = "NOTE: " ntaxatrees - nmatched " taxa not matched: "
-    endbit = ", "
-
+    warning = "Warning: " ntaxatrees - nmatched " taxa not matched: "
     for (i = 1; i <= ntaxatrees; i++)
       if (!matched[i])
-        warning = warning taxa[i] endbit
+        warning = warning "'" taxa[i] "', "
+    gsub(/, $/,"",warning)
   }
 }
 
@@ -428,10 +422,10 @@ function fyt2new(                 x , y, n, first , mark, tmp)  {
   # Recurse through levels
 
   tmp = ""
-  if (warning) 
-    warning = "[" warning "]"
   
-  print downPar(rootNode, tmp) warning
+  print downPar(rootNode, tmp) ";"
+  if (warning)
+    print "\n" warning > "/dev/stderr"
 
 }
 
@@ -483,7 +477,7 @@ function printfyt(     i) {
     print i, parent[i], bl[i], taxon[i] # nDaughter[i],  
   
   if (warning)
-    print warning "\n"
+    print warning "\n" warning > "/dev/stderr"
 }
 
 function error( msg ) {
