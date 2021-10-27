@@ -170,7 +170,7 @@ function new2fyt(          newick, i, j , k, atn, iname, taxa, b) {
 function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
                            nodetmp, newnode, nkpd, nmatched, node, ntaxatrees,\
                            p, shiftedbl, taxa, thisnode, tobecleaned, x, xbl, \
-                           z1, z2) {
+                           z1, z2, possNewRoot, wascleaned) {
   if (HasBL)
     ageToRoot()
 
@@ -227,7 +227,9 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
         # compare with the Taxon name at every node in the megatree
         # case insensitive
         if (tolower(node[j]) == tolower(Taxon[k])) {
-          # print "found " Taxon[k] " for t " i " j " j "/" nnodes "\n"
+          if (DEBUG)
+            print "found " Taxon[k] " for t " i " j " j "/" nnodes \
+              > "/dev/stderr"
           # if matches, add to megatree:
           
           # terminal to terminal match:
@@ -317,44 +319,67 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
   
   # Finally, if phy is to be cleaned:
   if (CLEAN) {
+
     # nkpd is number of times the Parent in an edge is passed through
+    # if only one, the node can be cleaned out
     for (i in kpd)
       for (j in kpd[i])
         nkpd[i]++
 
-    for (i in Parent)
-      print i, Parent[i], DaughtersN[i], Taxon[i], nkpd[i]
-    exit
-    
     for (i in Parent) {
       # visit paths to root from all terminal nodes
       if (!DaughtersN[i]) {
-        # print "node " i ", Parent " Parent[i] ", nkpd " nkpd[i] ", tax " Taxon[i]
+
+        if (DEBUG)
+          print "node " i ", Parent " Parent[i] ", tax " Taxon[i] \
+            > "/dev/stderr"
         
         j = i
-        # move up through tree 
-        while (Parent[j] != "-1") {
-          # print "  considering Parent of " j " -> " Parent[j] " Taxon " Taxon[Parent[j]]
+        # move up through tree, not considering the root, and skipping
+        #   paths through tree already visited
+        while ((Parent[j] != "-1") && !wascleaned[j]) {
+          if (DEBUG)
+            print "  considering Parent of " j " -> " Parent[j] " Taxon " \
+              Taxon[Parent[j]]  > "/dev/stderr"
           x = Parent[j]
           xbl = 0
           # if the Parent node is only passed through once, i.e. not a node
           #   in cleaned phylogeny
-          while (nkpd[x] == 1) {
+          while ((nkpd[x] == 1) && (Parent[x] != "-1")) {
             tobecleaned = x
             xbl += Bl[tobecleaned]
             x = Parent[x]
 
-            print "    deleted " tobecleaned " Taxon " Taxon[tobecleaned]
+            if (DEBUG)
+              print "    deleted " tobecleaned " Taxon " Taxon[tobecleaned] \
+                > "/dev/stderr"
             delete Parent[tobecleaned]
           }
+          # connect j to x
           Parent[j] = x
           Bl[j] += xbl
+          # record that this node has been visited during cleaning
+          wascleaned[j] = 1
+          # now try the next one...
           j = Parent[j]
+          # record a node (may be several) that is a node away from
+          #   the original root
+          if (Parent[Parent[j]] == "-1")
+            possNewRoot = j
         }
+        # set a counter to find dangling
+        
         # set new RootNode
-        if (Parent[j] == "-1") RootNode = j
+        # if (Parent[j] == "-1") RootNode = j
       }
     }
+
+    ## if the original root is now a tail
+    if (nkpd[RootNode] == 1) {
+      delete Parent["-1"]
+      RootNode = possNewRoot
+    }
+      
     # NULL was added to the index of Parent, clear it:
     # delete Parent["-1"]
   }
@@ -401,7 +426,8 @@ function ageNode(innode,      j, sumBL) {
     }
   }
   Age[innode] = TotalBL - sumBL
-  # print "Age of " innode " is " Age[innode] "\n"
+  if (DEBUG)
+    print "Age of " innode " is " Age[innode] > "/dev/sdterr"
 }
 
 function fy2new(                 x , y, n, first , mark, tmp)  {
