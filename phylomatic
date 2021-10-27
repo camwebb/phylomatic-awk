@@ -5,7 +5,7 @@
 # Copyright (c) 2012-2021, Campbell Webb <cw@camwebb.info>
 
 # Global variables: Parent[], Bl[], Taxon[], Note[], DaughtersN[],
-#                   HasBL, warning, RootNode
+#                   HasBL, Warning, RootNode
 # Global constants: CLEAN, FYIN, FYOUT, TAXAFILE, PHYLOFILE
 
 BEGIN{
@@ -185,14 +185,13 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
   gsub(/\r\n/,"\n",ftaxa);  # fix windows
   gsub(/\r/,"\n",ftaxa);    # fix mac
   gsub(/\n\n*$/,"",ftaxa);  # clean empty newlines at end
-  gsub(/[ \t]/,"",ftaxa);   # important - tabs were causing hangs
-                            # CHECK: spaces allowed in taxa names?
+  gsub(/[\t]/,"",ftaxa);   # important - tabs were causing hangs
 
   # split lines
   ntaxatrees = split(ftaxa, taxa, "\n")
   if (ntaxatrees > 10000)
     error("More than 10,000 taxa. May take too long.\n"     \
-          "  Comment out the relevant warning in source"\
+          "  Comment out the relevant Warning in source"\
           " if you really want to do this.")
 
   # ** Graft **
@@ -205,9 +204,13 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
     # parse slashes
     nnodes = split(taxa[i], nodetmp, "/")
     # reverse the indices, so 1 is the terminal one
-    for (j = 1; j <= nnodes; j++)
+    for (j = 1; j <= nnodes; j++) {
+      # clean in the same way names in the phylo were cleaned
+      gsub(/ +$/,"",nodetmp[j])
+      gsub(/^ +/,"",nodetmp[j])
+      gsub(/ /,"_",nodetmp[j])
       node[nnodes - j+1] =  nodetmp[j]
-
+    }
     #  climb through the levels of nesting from terminal to basal
     for (j = 1; j <= nnodes; j++) {
       if (matched[i])
@@ -281,7 +284,7 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
 
   if(!nmatched) error("No taxa in common")
 
-  # AND PRUNE:
+  # ** Prune **
   
   for (i in Parent) {
     # terminals only with matching taxa
@@ -291,9 +294,13 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
       # ...was: while ((Parent[j] != "NULL") || (!Parent[j])) {
       #   because the RootNode's Parent was sometimes ""; safer to use -1
       while (Parent[j] != "-1") {
-        # for possible cleaning (kpd = kept Parent daughter)
+        # for possible cleaning. kpd = kept parent / daughter. Later,
+        # if a node has only been visited via it's single root from
+        # retained terminal, and not via two or more it can be cleaned
+        # out
         kpd[Parent[j]][j]=1
-        
+
+        # keep the parent in the pruned tree (before cleaning)
         j = Parent[j]
         keep[j]=1
       }
@@ -304,15 +311,11 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
   }
 
   # now remove the elements not kept:
-  # make sure only to reference arrays by looping in Parent!
-
   for (i in Parent)
-    if (!keep[i]) {
-      delete Parent[i]  # Careful to only loop through Parent[] now
-      # print "deleting " i
-    }
+    if (!keep[i])
+      delete Parent[i]  # Careful to only loop through Parent[] after this!
+  
   # Finally, if phy is to be cleaned:
-  CLEAN = 1
   if (CLEAN) {
     # nkpd is number of times the Parent in an edge is passed through
     for (i in kpd)
@@ -359,11 +362,11 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
 
   # Missing taxa
   if (nmatched < ntaxatrees) {
-    warning = "Warning: " ntaxatrees - nmatched " taxa not matched: "
+    Warning = "Warning: " ntaxatrees - nmatched " taxa not matched: "
     for (i = 1; i <= ntaxatrees; i++)
       if (!matched[i])
-        warning = warning "'" taxa[i] "', "
-    gsub(/, $/,"",warning)
+        Warning = Warning "'" taxa[i] "', "
+    gsub(/, $/,"",Warning)
   }
 }
 
@@ -472,8 +475,8 @@ function fy2new(                 x , y, n, first , mark, tmp)  {
   
   print downPar(RootNode, tmp) ";"
   
-  if (warning)
-    print warning > "/dev/stderr"
+  if (Warning)
+    print Warning > "/dev/stderr"
 }
 
 function downPar(atn, tmp,           x, which, tmpnext ) {
@@ -525,8 +528,8 @@ function printfy(     i) {
   for (i in Parent)
     print i, Parent[i], Bl[i], Taxon[i], Note[i]  # DaughtersN[i],  
   
-  if (warning)
-    print warning > "/dev/stderr"
+  if (Warning)
+    print Warning > "/dev/stderr"
 }
 
 function error( msg ) {
