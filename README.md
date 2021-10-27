@@ -1,6 +1,6 @@
 # Phylomatic-awk
 
-A CLI phylomatic written in Awk
+A CLI `phylomatic` written in Awk
 
 ## Usage
 
@@ -74,9 +74,11 @@ directory, `copy`, `more` = see file contents.
 
     cd Desktop\phylomatic-awk-1.0.0
     dir
+      ...
     ..\gawk-5.1.0-w32-bin\bin\gawk.exe -f phylomatic
-    ..\gawk-5.1.0-w32-bin\bin\gawk.exe -f ./phylomatic --clean --newick data/zanne2014.new --taxa examples/taxa2
-    ..\gawk-5.1.0-w32-bin\bin\gawk.exe -f ./phylomatic --clean --newick data/zanne2014.new --taxa examples/taxa2 > out.new
+    ..\gawk-5.1.0-w32-bin\bin\gawk.exe -f phylomatic --clean --newick data/zanne2014.new --taxa examples/taxa2
+    ..\gawk-5.1.0-w32-bin\bin\gawk.exe -f phylomatic --clean --newick data/zanne2014.new --taxa examples/taxa2 > out.new
     dir
+      ...
     more out.new
 
