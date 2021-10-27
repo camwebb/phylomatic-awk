@@ -61,9 +61,7 @@ git push origin v1.0.1
  * Download Gawk from
    [Ezwinports](https://sourceforge.net/projects/ezwinports/files/) and unzip
    on the Desktop.
- * Download the latest `phylomatic-awk` release from github:
-   <https://github.com/camwebb/phylomatic-awk/releases/>, and unzip on
-   the Desktop.
+ * Download the latest `phylomatic-awk` [release](https://github.com/camwebb/phylomatic-awk/releases/), and unzip on the Desktop.
  * In the menubar search box, type `CMD.EXE` and open it. This is the old
    DOS commandline. MS `Powershell` can also be used.
 
