@@ -6,7 +6,7 @@
 
 # Global variables: Parent[], Bl[], Taxon[], Note[], DaughtersN[],
 #                   HasBL, Warning, RootNode
-# Global constants: CLEAN, FYIN, FYOUT, TAXAFILE, PHYLOFILE
+# Global constants: NOCLEAN, FYIN, FYOUT, TAXAFILE, PHYLOFILE
 
 BEGIN{
 
@@ -318,7 +318,7 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
       delete Parent[i]  # Careful to only loop through Parent[] after this!
   
   # Finally, if phy is to be cleaned:
-  if (CLEAN) {
+  if (!NOCLEAN) {
 
     # nkpd is number of times the Parent in an edge is passed through
     # if only one, the node can be cleaned out
@@ -566,7 +566,7 @@ function error( msg ) {
 function read_args(    arg) {
   # Read arguments, check, give usage. Long args to avoid Gawk clash
   for (arg = 1; arg < ARGC; arg++) {
-    if      (ARGV[arg] == "--clean" ) CLEAN     = 1
+    if      (ARGV[arg] == "--noclean" ) NOCLEAN     = 1
     else if (ARGV[arg] == "--new2fy") FYIN      = 1 # print fy of phylo, exit
     else if (ARGV[arg] == "--fyout" ) FYOUT     = 1 # output fy not newick
     else if (ARGV[arg] == "--taxa"  ) TAXAFILE  = ARGV[arg+1]
@@ -574,9 +574,9 @@ function read_args(    arg) {
   }
   
   if ((!TAXAFILE && !FYIN) || !PHYLOFILE) {
-    print "Usages: phylomatic [ --clean --fyout  ] "                 \
+    print "Usages: phylomatic [ --noclean --fyout  ] "                 \
       "--newick <phylo> --taxa <taxa>\n"                             \
-      "        phylomatic           --new2fy   --newick <phylo>"     \
+      "        phylomatic             --new2fy   --newick <phylo>"     \
       > "/dev/stderr"
     exit 1
   }
