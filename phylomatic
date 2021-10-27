@@ -170,7 +170,7 @@ function new2fyt(          newick, i, j , k, atn, iname, taxa, b) {
 function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
                            nodetmp, newnode, nkpd, nmatched, node, ntaxatrees,\
                            p, shiftedbl, taxa, thisnode, tobecleaned, x, xbl, \
-                           z1, z2, possNewRoot, wascleaned) {
+                           z1, z2, possNewRoot, wascleaned, k) {
   if (HasBL)
     ageToRoot()
 
@@ -230,6 +230,7 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
           if (DEBUG)
             print "found " Taxon[k] " for t " i " j " j "/" nnodes \
               > "/dev/stderr"
+
           # if matches, add to megatree:
           
           # terminal to terminal match:
@@ -393,6 +394,9 @@ function phylomatic(       divbl, endbit, ftaxa, i, j, keep, kpd, matched, \
         Warning = Warning "'" taxa[i] "', "
     gsub(/, $/,"",Warning)
   }
+
+  close("/dev/stderr")
+
 }
 
 function ageToRoot(     i, j) {
@@ -427,7 +431,9 @@ function ageNode(innode,      j, sumBL) {
   }
   Age[innode] = TotalBL - sumBL
   if (DEBUG)
-    print "Age of " innode " is " Age[innode] > "/dev/sdterr"
+    print "Age of " innode " is " Age[innode] > "/dev/stderr"
+  close("/dev/stderr")
+
 }
 
 function fy2new(                 x , y, n, first , mark, tmp)  {
@@ -565,6 +571,7 @@ function error( msg ) {
 
 function read_args(    arg) {
   # Read arguments, check, give usage. Long args to avoid Gawk clash
+  NOCLEAN = FYIN = FYOUT = TAXAFILE = PHYLOFILE = 0
   for (arg = 1; arg < ARGC; arg++) {
     if      (ARGV[arg] == "--noclean" ) NOCLEAN     = 1
     else if (ARGV[arg] == "--new2fy") FYIN      = 1 # print fy of phylo, exit
@@ -578,6 +585,7 @@ function read_args(    arg) {
       "--newick <phylo> --taxa <taxa>\n"                             \
       "        phylomatic             --new2fy   --newick <phylo>"     \
       > "/dev/stderr"
+    close("/dev/stderr")
     exit 1
   }
 }
