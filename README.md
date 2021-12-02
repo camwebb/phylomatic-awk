@@ -26,6 +26,11 @@ and required arguments are:
      the taxon name itself is not found in the phylogeny, one of its
      parent taxa may be. See examples.
 
+The program may also be used to just convert a Newick file into `fy`
+format:
+
+    phylomatic --new2fy --newick <phylo_file>
+
 ## Installation
 
 The Awk script is self contained and can easily be run in any
@@ -56,8 +61,7 @@ Terminal window with:
 
 The script can be easily run using Gawk cross-compiled for Windows,
 and the `CMD.EXE` command prompt:
-git tag v1.0.1
-git push origin v1.0.1
+
  * Download Gawk from
    [Ezwinports](https://sourceforge.net/projects/ezwinports/files/) and unzip
    on the Desktop.
