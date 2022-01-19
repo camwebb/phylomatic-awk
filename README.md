@@ -65,6 +65,11 @@ and the `CMD.EXE` command prompt:
  * Download Gawk from
    [Ezwinports](https://sourceforge.net/projects/ezwinports/files/) and unzip
    on the Desktop.
+ * (This step may not be needed... try `gawk.exe` first without
+   it. Otherwise: download `libgcc-6.3.0-1-mingw32-dll-1.tar.xz`
+   [here](https://sourceforge.net/projects/mingw/files/MinGW/Base/gcc/Version6/gcc-6.3.0/libgcc-6.3.0-1-mingw32-dll-1.tar.xz/download). Then [extract](https://tukaani.org/xz/)
+   the file it contains: `libgcc_s_dw2-1.dll` and place this DLL file
+   in the same directory as `gawk.exe`.)
  * Download the latest `phylomatic-awk` [release](https://github.com/camwebb/phylomatic-awk/releases/), and unzip on the Desktop.
  * In the menubar search box, type `CMD.EXE` and open it. This is the old
    DOS commandline. MS `Powershell` can also be used.
