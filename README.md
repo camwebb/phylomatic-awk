@@ -8,7 +8,7 @@ Basic usage is:
 
     phylomatic OPTIONS --newick <phylo_file> --taxa <taxa_file>
 
-Where OPTIONS are:
+where OPTIONS are:
 
  * `--noclean`: Do not clean single-daughter nodes from output phylogeny
  * `--fyout`: Output a tabular `fy` representation of the output phylogeny
@@ -25,6 +25,12 @@ and required arguments are:
      may be prefixed to the taxon to be matched with slashes (`/`); if
      the taxon name itself is not found in the phylogeny, one of its
      parent taxa may be. See examples.
+
+For example, to use the Zanne 2014 megatree included in the `data/`
+directory, with an example list of taxa, in the `examples/` directory,
+and send the Newick output to a file `out.new`:
+
+    phylomatic --newick data/zanne2014.new --taxa examples/taxa2 > out.new
 
 The program may also be used to just convert a Newick file into `fy`
 format:
