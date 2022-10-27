@@ -1,6 +1,13 @@
 # Phylomatic-awk
 
-A CLI `phylomatic` written in Awk
+_A CLI `phylomatic` written in Awk_
+
+Phylomatic is a tool for attaching members of a user-supplied list of
+taxa (in the ‘`taxa`’ file) to a master, or ‘mega’ phylogeny (in the
+‘`phylo`’ file) at as terminal a position as possible, using the
+internal node names of the megatree.  Please see
+[Webb and Donoghue (2005)](http://camwebb.info/files/pubs/webb2005_men.pdf)
+for more information on the goals of the tool.
 
 ## Usage
 
@@ -18,13 +25,13 @@ and required arguments are:
  * `--newick <phylo_file>`: a file containing a single Newick
      serialization of a phylogeny. Two key requirements: The taxon
      names must begin with a character from `A-Z` or `a-z` or `_`
-     (i.e. not numbers), and any branch lengths may not be in
-     scientific notation.
+     (i.e. not numbers), and any branch lengths must not be in
+     scientific notation (i.e. ‘0.0001’, not ‘1.0E-4’).
  * `--taxa <taxa_file>`: a file containing taxa to be grafted into the
      phylogeny. Format: plain text, one taxon per line. Parent taxa
      may be prefixed to the taxon to be matched with slashes (`/`); if
      the taxon name itself is not found in the phylogeny, one of its
-     parent taxa may be. See examples.
+     parent taxa may be. See below, and examples.
 
 For example, to use the Zanne 2014 megatree included in the `data/`
 directory, with an example list of taxa, in the `examples/` directory,
@@ -94,4 +101,42 @@ directory, `copy`, `more` = see file contents.
     dir
       ...
     more out.new
+
+## The taxa file
+
+Each [RETURN]-delimited line of the file lists a set of hierarchical
+taxon names (delimited by ‘`/`’), which will be sought for as either
+terminal or internal node names in the megatree. An example:
+
+      annonaceae/annona/Annona_cherimola
+      annonaceae/annona/Annona_muricata
+      fagaceae/Quercus_robur
+      dipterocarpaceae/shorea/Shorea_parvifolia
+
+The last name on each line is the name that will be spliced into the
+returned tree. Note that phylomatic will not match a taxon `Z` in
+`x/y/Z` where `Z` is an internal node in the megatree (reference)
+phylogeny. In the case where, for instance, an output tree of just
+genera is desired, but some of the genera appear in the megatree as
+internal node names, ‘dummy species’ names can be used genus (e.g.,
+`betulaceae/alnus/alnus_sp`); a text editor can later be used to
+remove the ‘`_sp`’ from the output tree.
+
+This ‘`/`’-delimited format allows the creation of unlimited
+user-defined phylogenetic structure. The program reads the string from
+right to left, matching the taxon at the first position it can in i)
+the ‘megatree,’ or ii) the growing user-defined tree. Hence, a `taxa`
+file containing:
+
+```
+annonaceae/g1/s1
+annonaceae/g2/s2
+annonaceae/g2/s3
+annonaceae/g2/s4/ssp1
+annonaceae/g2/s4/ssp2
+```
+
+will produce a tree containing:
+`((s1)g1,(s2,s3,(ssp1,ssp2)s4)g2)annonaceae`.  See `taxa` files the
+`examples` directory.
 
