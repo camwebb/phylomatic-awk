@@ -68,11 +68,15 @@ or explicitly as a script via:
 
 ### Mac
 
-The default Awk on Macs is not Gawk, but the script runs as is (though
-it uses extensions that are not POSIX standard). Run the script in a
-Terminal window with: 
+The default Awk on Macs is not Gawk, but the script may run as is
+(though it uses Gawk extensions that are not POSIX standard). Run the
+script in a Terminal window with:
 
-    awk -f phylomatic --newick ...etc`
+    awk -f phylomatic --newick ...etc
+
+If the script fails with syntax error or illegal statement errors, you
+will need to install Gawk, e.g., using [Homebrew](https://brew.sh/) or
+[Fink](https://www.finkproject.org/).
 
 ### Windows
 
