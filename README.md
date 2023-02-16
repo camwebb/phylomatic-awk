@@ -5,9 +5,13 @@ _A CLI `phylomatic` written in Awk_
 Phylomatic is a tool for attaching members of a user-supplied list of
 taxa (in the ‘`taxa`’ file) to a master, or ‘mega’ phylogeny (in the
 ‘`phylo`’ file) at as terminal a position as possible, using the
-internal node names of the megatree.  Please see
+internal node names of the megatree.  
+
+Please see
 [Webb and Donoghue (2005)](http://camwebb.info/files/pubs/webb2005_men.pdf)
-for more information on the goals of the tool.
+for more information on the goals of the tool, and
+[this page](https://camwebb.info/doc/phylomatic.html) for a short
+history of its implementation.
 
 ## Usage
 
